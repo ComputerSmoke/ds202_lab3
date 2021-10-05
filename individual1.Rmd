@@ -1,0 +1,114 @@
+---
+title: "Lab 3"
+author: "Addison Schmidt"
+date: "10/3/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+dat <- readxl::read_xls("./GSS.xls")
+library(ggplot2)
+library(dplyr)
+```
+
+```{r}
+dat = dat[dat$"Highest year of school completed" != "No answer", ]
+dat
+```
+
+1. Widowed people tend to have the least mean school years completed, likely because they tend to be older and would have been
+likely to go through less school in the past. Never married have the highest mean of those who answered. Interestingly, those who
+did not answer marital status had the greatest mean years of school completed.
+```{r}
+dat$`Highest year of school completed` = strtoi(dat$`Highest year of school completed`)
+schoolByMarital = dat %>% 
+  group_by(`Marital status`) %>% 
+  summarize(meanSchoolCompleted = mean(`Highest year of school completed`)) %>%
+  arrange(`meanSchoolCompleted`)
+schoolByMarital
+
+```
+
+2.
+```{r}
+betterEducated = dat %>% 
+  filter((`Marital status` == "Widowed" & `Highest year of school completed` > 11.19825) | 
+          (`Marital status` == "Seperated" & `Highest year of school completed` > 11.85580) |
+          (`Marital status` == "Married" & `Highest year of school completed` > 12.96828) |
+          (`Marital status` == "Divorced" & `Highest year of school completed` > 13.10582) |
+          (`Marital status` == "Never married" & `Highest year of school completed` > 13.38954) |
+          (`Marital status` == "No answer" & `Highest year of school completed` > 15.47826))
+
+structure(betterEducated)
+```
+3.From the plot, we see that married people have the highest ratio of happiness to unhappiness, and that seperated have the least. Interestingly, those who declined to answer tended to have the second least portion of happiness, indicating a correlation between unwillingness to answer the question about marital stat and happiness level.
+```{r}
+dat = dat %>% 
+  filter(`General happiness` %in% c('Very happy', 'Pretty happy', 'Not too happy'))  %>%
+  mutate(happy = (`General happiness` %in% c('Very happy', 'Pretty happy')))
+happy = dat %>% 
+  filter(`General happiness` %in% c('Very happy', 'Pretty happy')) %>%
+  group_by(`Marital status`) %>%
+  summarise(num = n());
+
+unhappy = dat %>% 
+  filter(`General happiness` %in% c('Not too happy')) %>%
+  group_by(`Marital status`) %>%
+  summarise(num = n());
+
+out = data.frame("Marital status" = happy$`Marital status`, "Happy portion" = happy$num / (happy$num + unhappy$num))
+out
+
+
+
+
+ggplot(dat, aes(y=`General happiness`)) + geom_histogram(stat="count") + facet_wrap(~`Marital status`)
+```
+
+
+4. One interesting effect is that amongst those who are seperated, the happiness portion is much higher for republicans. To a lesser extent, the happiness portion is higher for republicans in other marital states as well.
+```{r}
+happyRepub = dat %>% 
+  filter(`General happiness` %in% c('Very happy', 'Pretty happy') & grepl("republican", `Political party affiliation`, fixed = TRUE)) %>%
+  group_by(`Marital status`) %>%
+  summarise(num = n());
+unhappyRepub = dat %>% 
+  filter(`General happiness` %in% c('Not too happy') & grepl("republican", `Political party affiliation`, fixed = TRUE)) %>%
+  group_by(`Marital status`) %>%
+  summarise(num = n());
+happyDem = dat %>% 
+  filter(`General happiness` %in% c('Very happy', 'Pretty happy') & grepl("democrat", `Political party affiliation`, fixed = TRUE)) %>%
+  group_by(`Marital status`) %>%
+  summarise(num = n());
+unhappyDem = dat %>% 
+  filter(`General happiness` %in% c('Not too happy') & grepl("democrat", `Political party affiliation`, fixed = TRUE)) %>%
+  group_by(`Marital status`) %>%
+  summarise(num = n());
+
+data.frame("Marital status" = happyRepub$`Marital status`, "Happy portion republican" = happyRepub$num / (happyRepub$num + unhappyRepub$num), "Happy portion democrat" = happyDem$num / (happyDem$num + unhappyDem$num))
+
+
+ggplot(dat, aes(y=`happy`, fill=`Marital status`)) + geom_histogram(stat="count", position="dodge") + facet_wrap(~`Political party affiliation`)
+```
+5. We find that the female happiness ratio is very close to the male happiness ratio. This means the portions of happy males to unhappy males and happy females to unhappy females are equivalent to within our margin of error.
+```{r}
+happyFemale = dat %>% 
+  filter(`General happiness` %in% c('Very happy', 'Pretty happy') & `Respondents sex` == "Female") %>%
+  summarise(num = n())
+unhappyFemale = dat %>% 
+  filter(`General happiness` %in% c('Not too happy') & `Respondents sex` == "Female") %>%
+  summarise(num = n())
+happyMale = dat %>% 
+  filter(`General happiness` %in% c('Very happy', 'Pretty happy') & `Respondents sex` == "Male") %>%
+  summarise(num = n())
+unhappyMale = dat %>% 
+  filter(`General happiness` %in% c('Not too happy') & `Respondents sex` == "Male") %>%
+  summarise(num = n())
+
+ratios = data.frame("Sex" = c("Male", "Female"), "Ratios" = c(happyMale$num / (happyMale$num + unhappyMale$num), happyFemale$num / (happyFemale$num + unhappyFemale$num)))
+ggplot(ratios, aes(x=ratios$Sex, y=ratios$Ratios)) + geom_point() + ylim(0, 1)
+```
